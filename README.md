@@ -43,8 +43,3 @@ Install in seconds:
 ```sh
 curl -sSL bucketlabs.org/bucket.sh | bash
 ```
-
-## About this repo
-This is a test repo to run a local bucket server on your machine. 
-
-**User application for Bucket cloud are available in Releases**
