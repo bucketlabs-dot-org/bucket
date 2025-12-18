@@ -1,6 +1,11 @@
 # 🪣 bucket
 ## Share Files Like You Ship Code
 
+
+<p align="right">
+  <img src="./img/bkt-dashboard.png" />
+</p>
+
 Say you need to share your new Rocky 9.7 iso with your team. 
 
 ```
