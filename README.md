@@ -1,7 +1,6 @@
 # 🪣 bucket
 ## Share Files Like You Ship Code
 
-
 <p align="right">
   <img src="./img/bkt-dashboard.png" />
 </p>
@@ -21,10 +20,12 @@ OneDrive?     🤬   #%!
 you:
 ```sh
 $ bucket push ./isos/Rocky-9.7-Custom-KS-x86_64-minimal.iso
-Upload complete!
-Tiny URL: https://api.bucketlabs.org/d/bcd0604ab
-Download secret: 4acf38cdd17a5a73
-Expires: 2025-12-07T18:17:30.780403029Z
+
+           ✓ Upload complete!
+
+   bURL:  https://api.bucketlabs.org/d/bk9b360f45-f40
+ Secret:  4d646d88-6f83-41
+Expires:  2091-06-25T00:00:00Z
 ```
 
 <p align="right">
@@ -33,7 +34,7 @@ Expires: 2025-12-07T18:17:30.780403029Z
 
 and your colleagues:
 ```sh
-$ bucket pull https://api.bucklabs.org/d/bcd0604ab
+$ bucket pull https://api.bucketlabs.org/d/bk9b360f45-f40
 Enter secret: 
 Downloaded: Rocky-9.7-Custom-KS-x86_64-minimal.iso
 ```
