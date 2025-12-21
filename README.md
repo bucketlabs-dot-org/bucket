@@ -22,7 +22,7 @@ you:
 ```sh
 $ bucket push ./isos/Rocky-9.7-Custom-KS-x86_64-minimal.iso
 Upload complete!
-Tiny URL: https://bucket.io/d/bcd0604ab
+Tiny URL: https://api.bucketlabs.org/d/bcd0604ab
 Download secret: 4acf38cdd17a5a73
 Expires: 2025-12-07T18:17:30.780403029Z
 ```
@@ -33,7 +33,7 @@ Expires: 2025-12-07T18:17:30.780403029Z
 
 and your colleagues:
 ```sh
-$ bucket pull https://bucket.io/d/bcd0604ab
+$ bucket pull https://api.bucklabs.org/d/bcd0604ab
 Enter secret: 
 Downloaded: Rocky-9.7-Custom-KS-x86_64-minimal.iso
 ```
@@ -41,5 +41,5 @@ Downloaded: Rocky-9.7-Custom-KS-x86_64-minimal.iso
 ## Installation
 Install in seconds:
 ```sh
-curl -sSL bucketlabs.org/bucket.sh | bash
+curl -sSL bucketlabs.org/install.sh | bash
 ```
