@@ -9,8 +9,6 @@ VERSION="$(curl -sSL ${VERSION_URL})"
 BIN_NAME="bucket"
 BIN_PATH="/usr/local/bin/$BIN_NAME"
 URI="https://github.com/bucketlabs-dot-org/bucket/releases/download"
-RELEASE_LINUX="${URI}/v${VERSION}/bucket-cli-${VERSION}-linux_${ARCH}"
-RELEASE_MACOS="${URI}/v${VERSION}/bucket-cli-${VERSION}-darwin_${ARCH}"
 
 info() { echo -e "\033[0;32m[INFO]\033[0m $1"; }
 error() { echo -e "\033[0;31m[ERROR]\033[0m $1" >&2; exit 1; }
@@ -32,6 +30,8 @@ esac
 
 info "Detected OS: ${OS_TYPE}"
 info "Detected ARCH: ${ARCH}"
+RELEASE_LINUX="${URI}/v${VERSION}/bucket-cli-${VERSION}-linux_${ARCH}"
+RELEASE_MACOS="${URI}/v${VERSION}/bucket-cli-${VERSION}-darwin_${ARCH}"
 info "Downloading ${BIN_NAME} v${VERSION}..."
 
 TMP_DIR=$(mktemp -d)
