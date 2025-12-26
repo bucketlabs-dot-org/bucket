@@ -25,7 +25,7 @@ $ bucket push ./isos/Rocky-9.7-Custom-KS-x86_64-minimal.iso
 
    bURL:  https://api.bucketlabs.org/d/bk9b360f45-f40
  Secret:  4d646d88-6f83-41
-Expires:  2091-06-25T00:00:00Z
+Expires:  2026-06-25T00:00:00Z
 ```
 
 <p align="right">
