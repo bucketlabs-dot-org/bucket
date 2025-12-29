@@ -69,7 +69,11 @@ func New(cfg *config.Config) *Client {
 		deviceName: cfg.DeviceName,
 
 		http: &http.Client{
-			Timeout: 30 * time.Second,
+		    Timeout: 0,
+		    Transport: &http.Transport{
+			    ExpectContinueTimeout: 10 * time.Minute,
+			    ResponseHeaderTimeout: 10 * time.Minute,
+		    },
 		},
 	}
 }
@@ -347,4 +351,31 @@ func (c *Client) FetchAccountInfo() (*AccountInfoResponse, error) {
 	}
 
 	return &out, nil
+}
+
+func (c *Client) Logout() error {
+	req, err := http.NewRequest(
+		"POST",
+		c.baseURL+"/v1/account/logout",
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	c.attachAuth(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Treat non-200 as warning, not fatal
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("logout failed: %s", b)
+	}
+
+	return nil
 }

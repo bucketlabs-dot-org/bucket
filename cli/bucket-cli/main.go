@@ -77,12 +77,19 @@ func main() {
 // ------------------------------------------------------------
 //
 func handleLogout(cfg *config.Config) {
-	if cfg.APIKey != "" {
-		deleteJson()
-	} else {
-		fmt.Print("You are not currently logged in.")
+	if cfg.APIKey == "" {
+		fmt.Println("You are not currently logged in.")
+		return
 	}
+
+	client := api.New(cfg)
+
+	// Best-effort server-side logout
+	_ = client.Logout()
+
+	deleteJson()
 }
+
 
 func handleLogin(cfg *config.Config) {
 	if cfg.APIKey != "" {
@@ -206,7 +213,8 @@ func handlePush(cfg *config.Config, filepath string) {
 	}
 
 	fmt.Println("\n\t   ✓ Upload complete!\n")
-	fmt.Println("   bURL: ", cfg.APIBase+"/d/"+uploadInit.TinyCode)
+	fmt.Println("    bID: ", uploadInit.TinyCode)
+	fmt.Println("   bURL: ", "api.bucketlabs.org"+"/d/"+uploadInit.TinyCode)
 	fmt.Println(" Secret: ", uploadInit.Secret)
 	fmt.Println("Expires: ", uploadInit.ExpiresAt)
 }
