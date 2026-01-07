@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/signal"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	
 	"golang.org/x/term"
@@ -187,36 +189,82 @@ func handleAccount(cfg *config.Config) {
 // ------------------------------------------------------------
 //
 func handlePush(cfg *config.Config, filepath string) {
-	if cfg.APIKey == "" {
-		fmt.Println("Not logged in. Run: bucket account")
-		return
-	}
+    if cfg.APIKey == "" {
+        fmt.Println("Not logged in. Run: bucket account")
+        return
+    }
 
-	stat, err := os.Stat(filepath)
-	if err != nil {
-		fmt.Println("File error:", err)
-		return
-	}
+    stat, err := os.Stat(filepath)
+    if err != nil {
+        fmt.Println("File error:", err)
+        return
+    }
 
-	client := api.New(cfg)
+    client := api.New(cfg)
 
-	uploadInit, err := client.RequestUpload(stat.Name(), stat.Size())
-	if err != nil {
-		fmt.Println("Upload failed:", err)
-		return
-	}
+    uploadInit, err := client.RequestUpload(stat.Name(), stat.Size())
+    if err != nil {
+        fmt.Println("Upload failed:", err)
+        return
+    }
 
-	err = client.UploadFile(uploadInit.UploadURL, filepath)
-	if err != nil {
-		fmt.Println("Upload failed:", err)
-		return
-	}
+    // Setup interrupt handler for cleanup
+    sigChan := make(chan os.Signal, 1)
+    signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+    
+    uploadDone := make(chan error, 1)
+    spinnerDone := make(chan bool)
+    fileID := uploadInit.FileID
 
-	fmt.Println("\n\t   ✓ Upload complete!\n")
-	fmt.Println("    bID: ", uploadInit.TinyCode)
-	fmt.Println("   bURL: ", "api.bucketlabs.org"+"/d/"+uploadInit.TinyCode)
-	fmt.Println(" Secret: ", uploadInit.Secret)
-	fmt.Println("Expires: ", uploadInit.ExpiresAt)
+    // Cleanup function
+    cleanup := func() {
+        fmt.Println("\n\n⚠️  Upload interrupted. Cleaning up...")
+        if err := client.CleanupFailedUpload(fileID); err != nil {
+            fmt.Println("Warning: Failed to cleanup incomplete upload:", err)
+        } else {
+            fmt.Println("✓ Incomplete upload removed")
+        }
+    }
+
+    // Start spinner
+    go showSpinner(spinnerDone, "Uploading...")
+
+    // Upload in goroutine
+    go func() {
+        uploadDone <- client.UploadFile(uploadInit.UploadURL, filepath)
+    }()
+
+    // Wait for upload or interrupt
+    select {
+    case err := <-uploadDone:
+        spinnerDone <- true // Stop spinner
+        signal.Stop(sigChan)
+        if err != nil {
+            fmt.Println("Upload failed:", err)
+            cleanup()
+            return
+        }
+    case <-sigChan:
+        spinnerDone <- true // Stop spinner
+        cleanup()
+        os.Exit(130) // Standard exit code for SIGINT
+    }
+
+    // VERIFY UPLOAD SUCCESS
+    fmt.Print("⏳ Verifying upload...")
+    err = client.VerifyUpload(uploadInit.FileID)
+    if err != nil {
+        fmt.Println("\n❌ Upload verification failed:", err)
+        fmt.Println("The file was not pushed. Please try again")
+        cleanup()
+        return
+    }
+
+    fmt.Println("\n\n\t   ✓ Upload complete!\n")
+    fmt.Println("    bID: ", uploadInit.TinyCode)
+    fmt.Println("   bURL: ", "api.bucketlabs.org"+"/d/"+uploadInit.TinyCode)
+    fmt.Println(" Secret: ", uploadInit.Secret)
+    fmt.Println("Expires: ", uploadInit.ExpiresAt)
 }
 
 //
@@ -257,16 +305,28 @@ func handlePull(cfg *config.Config, tinyURL string) {
         return
     }
 
-	// fmt.Println("DEBUG: filename from server =", filename)
+    // Start spinner
+    spinnerDone := make(chan bool)
+    downloadDone := make(chan error, 1)
+    
+    go showSpinner(spinnerDone, "Downloading")
 
     // download object
-    savedFilename, err := client.DownloadFile(downloadURL, filename) 
+    go func() {
+        _, err := client.DownloadFile(downloadURL, filename)
+        downloadDone <- err
+    }()
+
+    // Wait for download
+    err = <-downloadDone
+    spinnerDone <- true
+
     if err != nil {
         fmt.Println("Download failed:", err)
         return
     }
 
-    fmt.Println("Downloaded:", savedFilename)
+    fmt.Println("\n✓ Downloaded:", filename)
 }
 
 //
@@ -379,6 +439,22 @@ func readPassword() string {
 	fmt.Println()
 
 	return strings.TrimSpace(string(bytePassword))
+}
+
+func showSpinner(done chan bool, message string) {
+    spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+    i := 0
+    for {
+        select {
+        case <-done:
+            fmt.Print("\r \r") // Clear the spinner line
+            return
+        default:
+            fmt.Printf("\r%s %s", spinners[i%len(spinners)], message)
+            i++
+            time.Sleep(100 * time.Millisecond)
+        }
+    }
 }
 
 func printHelp() {

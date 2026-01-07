@@ -147,6 +147,46 @@ func (c *Client) UploadFile(url, localPath string) error {
 	return nil
 }
 
+func (c *Client) VerifyUpload(fileID string) error {
+	payload := fmt.Sprintf(`{"file_id":"%s"}`, fileID)
+
+	req, _ := http.NewRequest("POST", c.baseURL+"/v1/upload/verify", bytes.NewBuffer([]byte(payload)))
+	c.attachAuth(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("upload verification failed: %s", b)
+	}
+
+	return nil
+}
+
+func (c *Client) CleanupFailedUpload(fileID string) error {
+    payload := fmt.Sprintf(`{"file_id":"%s"}`, fileID)
+
+    req, _ := http.NewRequest("POST", c.baseURL+"/v1/upload/cleanup", bytes.NewBuffer([]byte(payload)))
+    c.attachAuth(req)
+
+    resp, err := c.http.Do(req)
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != 200 {
+        b, _ := io.ReadAll(resp.Body)
+        return fmt.Errorf("cleanup failed: %s", b)
+    }
+
+    return nil
+}
+
 func (c *Client) AuthDownload(tiny, secret string) (string, string, error) {
     body := fmt.Sprintf(`{"tiny":"%s","secret":"%s"}`, tiny, secret)
 
