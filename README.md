@@ -1,6 +1,21 @@
 # 🪣 bucket
-## Share Files Like You Ship Code
+### *Share Files Like You Ship Code*
 
+## Documentation
+### [docs.bucketlabs.org](http://docs.bucketlabs.org) 
+## Installation
+Install in seconds:
+```sh
+# WSL/MacOS/Linux
+curl -sSL bucketlabs.org/install.sh | bash
+```
+
+```powershell
+# Windows (powershell)
+irm bucketlabs.org/install.ps1 | iex 
+```
+
+## What is bucket?
 Say you need to share your new 16GB Rocky 9.7 iso with your systems team.  
 
 ```
@@ -43,16 +58,3 @@ Downloaded: Rocky-9.7-Custom-KS-x86_64-minimal.iso
 <p align="right">
   <img src="./img/bkt-dashboard.png" />
 </p>
-
-
-## Installation
-Install in seconds:
-```sh
-# WSL/MacOS/Linux
-curl -sSL bucketlabs.org/install.sh | bash
-```
-
-```powershell
-# Windows (powershell)
-irm bucketlabs.org/install.ps1 | iex 
-```
