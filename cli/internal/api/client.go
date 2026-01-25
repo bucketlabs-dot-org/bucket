@@ -7,19 +7,22 @@ import (
 	"io"
 	"net/http"
 	"os"
-	//"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/bucketlabs-dot-org/bucket/cli/internal/config"
 )
 
+const (
+	keyPrefix = "bk-"
+	keySuffix = "-0205"
+)
 
 // API structures
 type AccountInfoResponse struct {
-    Tier      string `json:"tier"`
-    UsedBytes int64  `json:"used_bytes"`
-    Quota     int64  `json:"quota"`
+	Tier      string `json:"tier"`
+	UsedBytes int64  `json:"used_bytes"`
+	Quota     int64  `json:"quota"`
 }
 
 type Client struct {
@@ -31,12 +34,12 @@ type Client struct {
 }
 
 type DeleteResponse struct {
-	Response        string `json:"delete_response"`
+	Response string `json:"delete_response"`
 }
 
 type DownloadAuthResponse struct {
 	DownloadURL string `json:"download_url"`
-	Filename	string `json:"filename"`
+	Filename    string `json:"filename"`
 }
 
 type FileInfo struct {
@@ -58,22 +61,19 @@ type UploadInitResponse struct {
 
 type TwoFARequiredError struct{}
 
-
-// API functions 
+// API functions
 func New(cfg *config.Config) *Client {
 	return &Client{
-		baseURL: cfg.APIBase,
-		apiKey:  cfg.APIKey,
-
+		baseURL:    cfg.APIBase,
+		apiKey:     cfg.APIKey,
 		deviceID:   cfg.DeviceID,
 		deviceName: cfg.DeviceName,
-
 		http: &http.Client{
-		    Timeout: 0,
-		    Transport: &http.Transport{
-			    ExpectContinueTimeout: 10 * time.Minute,
-			    ResponseHeaderTimeout: 10 * time.Minute,
-		    },
+			Timeout: 0,
+			Transport: &http.Transport{
+				ExpectContinueTimeout: 10 * time.Minute,
+				ResponseHeaderTimeout: 10 * time.Minute,
+			},
 		},
 	}
 }
@@ -82,15 +82,35 @@ func (e *TwoFARequiredError) Error() string {
 	return "2fa_required"
 }
 
+// formatAPIKey wraps the raw API key with prefix and suffix
+// Config stores: 8db56714-1229-41be-a938-2f536b75de94
+// Wire format:   bk-8db56714-1229-41be-a938-2f536b75de94-0205
+func formatAPIKey(rawKey string) string {
+	if rawKey == "" {
+		return ""
+	}
+	// Avoid double-formatting if already formatted
+	if strings.HasPrefix(rawKey, keyPrefix) && strings.HasSuffix(rawKey, keySuffix) {
+		return rawKey
+	}
+	return keyPrefix + rawKey + keySuffix
+}
+
+// attachAuth adds authentication headers to requests
+// SECURITY: Sends formatted API key + device ID for verification
 func (c *Client) attachAuth(req *http.Request) {
 	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		formattedKey := formatAPIKey(c.apiKey)
+		req.Header.Set("Authorization", "Bearer "+formattedKey)
+	}
+	// CRITICAL: Send device_id with every authenticated request
+	if c.deviceID != "" {
+		req.Header.Set("X-Device-ID", c.deviceID)
 	}
 	req.Header.Set("Content-Type", "application/json")
 }
 
 func (c *Client) RequestUpload(filename string, size int64) (*UploadInitResponse, error) {
-
 	payload := fmt.Sprintf(`{"filename":"%s","size_bytes":%d}`, filename, size)
 
 	req, _ := http.NewRequest("POST", c.baseURL+"/v1/upload/request", bytes.NewBuffer([]byte(payload)))
@@ -115,7 +135,6 @@ func (c *Client) RequestUpload(filename string, size int64) (*UploadInitResponse
 }
 
 func (c *Client) UploadFile(url, localPath string) error {
-
 	f, err := os.Open(localPath)
 	if err != nil {
 		return err
@@ -168,99 +187,97 @@ func (c *Client) VerifyUpload(fileID string) error {
 }
 
 func (c *Client) CleanupFailedUpload(fileID string) error {
-    payload := fmt.Sprintf(`{"file_id":"%s"}`, fileID)
+	payload := fmt.Sprintf(`{"file_id":"%s"}`, fileID)
 
-    req, _ := http.NewRequest("POST", c.baseURL+"/v1/upload/cleanup", bytes.NewBuffer([]byte(payload)))
-    c.attachAuth(req)
+	req, _ := http.NewRequest("POST", c.baseURL+"/v1/upload/cleanup", bytes.NewBuffer([]byte(payload)))
+	c.attachAuth(req)
 
-    resp, err := c.http.Do(req)
-    if err != nil {
-        return err
-    }
-    defer resp.Body.Close()
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-    if resp.StatusCode != 200 {
-        b, _ := io.ReadAll(resp.Body)
-        return fmt.Errorf("cleanup failed: %s", b)
-    }
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("cleanup failed: %s", b)
+	}
 
-    return nil
+	return nil
 }
 
 func (c *Client) AuthDownload(tiny, secret string) (string, string, error) {
-    body := fmt.Sprintf(`{"tiny":"%s","secret":"%s"}`, tiny, secret)
+	body := fmt.Sprintf(`{"tiny":"%s","secret":"%s"}`, tiny, secret)
 
-    req, _ := http.NewRequest("POST", c.baseURL+"/v1/download/auth", bytes.NewBuffer([]byte(body)))
-    c.attachAuth(req)
+	req, _ := http.NewRequest("POST", c.baseURL+"/v1/download/auth", bytes.NewBuffer([]byte(body)))
+	c.attachAuth(req)
 
-    resp, err := c.http.Do(req)
-    if err != nil {
-        return "", "", err
-    }
-    defer resp.Body.Close()
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
 
-    if resp.StatusCode != 200 {
-        b, _ := io.ReadAll(resp.Body)
-        return "", "", fmt.Errorf("auth failed: %s", b)
-    }
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		return "", "", fmt.Errorf("auth failed: %s", b)
+	}
 
-    var out struct {
-        DownloadURL string `json:"download_url"`
-        Filename    string `json:"filename"`
-    }
-    json.NewDecoder(resp.Body).Decode(&out)
-    return out.DownloadURL, out.Filename, nil
+	var out struct {
+		DownloadURL string `json:"download_url"`
+		Filename    string `json:"filename"`
+	}
+	json.NewDecoder(resp.Body).Decode(&out)
+	return out.DownloadURL, out.Filename, nil
 }
 
 func (c *Client) DownloadFile(url string, suggestedFilename string) (string, error) {
-    resp, err := c.http.Get(url)
-    if err != nil {
-        return "", err
-    }
-    defer resp.Body.Close()
+	resp, err := c.http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 
-    if resp.StatusCode >= 300 {
-        b, _ := io.ReadAll(resp.Body)
-        return "", fmt.Errorf("download failed: %s", b)
-    }
+	if resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("download failed: %s", b)
+	}
 
-    // Use suggested filename from server
-    filename := suggestedFilename
-    if filename == "" {
-        filename = "downloaded.file"
-    }
+	// Use suggested filename from server
+	filename := suggestedFilename
+	if filename == "" {
+		filename = "downloaded.file"
+	}
 
-    out, err := os.Create(filename)
-    if err != nil {
-        return "", err
-    }
-    defer out.Close()
+	out, err := os.Create(filename)
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
 
-    _, err = io.Copy(out, resp.Body)
-    return filename, err
+	_, err = io.Copy(out, resp.Body)
+	return filename, err
 }
-
 
 func (c *Client) DeleteFile(tiny string) error {
-    payload := fmt.Sprintf(`{"tiny":"%s"}`, tiny)
+	payload := fmt.Sprintf(`{"tiny":"%s"}`, tiny)
 
-    req, _ := http.NewRequest("POST", c.baseURL+"/v1/delete", bytes.NewBuffer([]byte(payload)))
-    c.attachAuth(req)
+	req, _ := http.NewRequest("POST", c.baseURL+"/v1/delete", bytes.NewBuffer([]byte(payload)))
+	c.attachAuth(req)
 
-    resp, err := c.http.Do(req)
-    if err != nil {
-        return err
-    }
-    defer resp.Body.Close()
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-    if resp.StatusCode != 200 {
-        b, _ := io.ReadAll(resp.Body)
-        return fmt.Errorf("object delete failed: %s", b)
-    }
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("object delete failed: %s", b)
+	}
 
-    return nil
+	return nil
 }
-
 
 func (c *Client) ListFiles() ([]FileInfo, error) {
 	req, _ := http.NewRequest("GET", c.baseURL+"/v1/files", nil)
@@ -292,7 +309,6 @@ func ExtractTinyCode(url string) string {
 }
 
 func (c *Client) Login(email, password, otpCode string) (string, error) {
-
 	// -------------------------
 	// LOGIN (password check)
 	// -------------------------
@@ -368,7 +384,6 @@ func (c *Client) Login(email, password, otpCode string) (string, error) {
 
 	return out.APIKey, nil
 }
-
 
 func (c *Client) FetchAccountInfo() (*AccountInfoResponse, error) {
 	req, _ := http.NewRequest("GET", c.baseURL+"/v1/account/info", nil)

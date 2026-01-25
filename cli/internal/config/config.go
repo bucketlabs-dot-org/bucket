@@ -7,15 +7,14 @@ import (
 )
 
 type Config struct {
-	APIBase   	string `json:"api_base"`
-	APIKey    	string `json:"api_key"`
-	DeviceID  	string `json:"device_id"`
+	APIBase    string `json:"api_base"`
+	APIKey     string `json:"api_key"`     // Stores RAW UUID (no prefix/suffix)
+	DeviceID   string `json:"device_id"`   // Used for device binding
 	DeviceName string `json:"device_name"`
-	Tier      	string `json:"tier"`
-	UsedBytes 	int64  `json:"used_bytes"`
-	Quota     	int64  `json:"quota"`
+	Tier       string `json:"tier"`
+	UsedBytes  int64  `json:"used_bytes"`
+	Quota      int64  `json:"quota"`
 }
-
 
 func configPath() string {
 	home, err := os.UserHomeDir()
